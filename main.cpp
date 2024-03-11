@@ -220,7 +220,7 @@ int wmain(int argc, wchar_t *argv[])
     wchar_t *targetPath = defaultTarget;
     if (argc >= 4) {
         targetPath = argv[3];
-        std::cout << "[+] Target: " << targetPath << std::endl;
+        std::wcout << "[+] Target: " << targetPath << std::endl;
     }
     wchar_t *payloadPath = argv[1];
     size_t payloadSize = 0;
@@ -235,7 +235,7 @@ int wmain(int argc, wchar_t *argv[])
         std::string keyStr(wkey.begin(), wkey.end());
         if (keyStr.length()) {
             decode_payload(payladBuf, payloadSize, (BYTE*)keyStr.c_str(), keyStr.length());
-            std::cout << "[+] Decoded with key: " << keyStr << std::endl;
+            std::cout << "[+] Decoded with key: " << keyStr.c_str() << std::endl;
         }
     }
 
